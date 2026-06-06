@@ -559,12 +559,12 @@ The full experiment is computationally heavy.
 
 Recommended hardware:
 
-* CUDA-compatible NVIDIA GPU
-* Large VRAM GPU preferred
-* Sufficient CPU RAM for video frame loading
-* Large local storage for RH20T data and checkpoints
+- CUDA-compatible NVIDIA GPU recommended for training
+- Higher VRAM will allow larger batch sizes and faster training
+- Adequate system RAM for loading and processing RH20T video and sensor data
+- Large local storage for RH20T data, pretrained checkpoints and generated model checkpoints
 
-The original training pipeline was designed for workstation/cluster-style hardware rather than standard laptop execution.
+The project can be run on lower-end systems for lightweight tests, debugging, or smaller dataset subsets. However, full-scale training on the complete RH20T dataset will take significantly longer and may require reducing batch size or limiting the number of loaded tasks.
 
 ## Precision and Stability Notes
 

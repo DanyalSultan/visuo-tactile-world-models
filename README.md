@@ -1,359 +1,657 @@
-# Multisensory Touch Representations for full hand dexterous manipulation
+# Visuo-Tactile World Models
 
-<p align="center">
-<img src="./assets/readme/readme_fig1.jpeg" alt="drawing" width="700"/>
-</p>
+A research prototype for multimodal predictive world modelling in robotic manipulation.
 
-This repository contains training and evaluation code for Sparsh-X and Sparsh-Skin, a family of encoder backbones for multisensory touch representation learning:
+This project fuses visual, tactile, proprioceptive and action-command data into a unified Transformer-based representation for predicting future robot kinematic states. The main experiment uses the RH20T robotic manipulation dataset and combines NVIDIA Cosmos visual tokens with a custom tactile encoder, proprioception and action commands to form a 1,027-token multimodal sequence.
 
-- **Sparsh-X**: Focuses on fusing multiple tactile sensing modalities available in the Digit 360 sensor (tactile image, audio, IMU and pressure)
-- **Sparsh-Skin**: Provides embeddings for tactile data from magnetic skins covering dexterous hands
+## Project Purpose
 
-<p align="center">
-  <a href=https://ai.facebook.com/research/ai-systems>AI at Meta, FAIR</a>;
-  <a href=https://ri.cmu.edu/>The Robotics Institute, CMU</a>;
-  <a href=https://www.washington.edu/>University of Washington</a>
-</p>
-<p align="center">
-<sup>*</sup>Equal contribution,
-<sup>+</sup>Equal Advising
-</p>
+Modern robotic manipulation systems often rely on reactive feedback, adjusting only after contact changes or slip have already occurred. This project explores a predictive alternative: a visuo-tactile world model that learns to anticipate the robot's next kinematic state from synchronised multimodal sensor streams.
 
-<h2 align='center'>Sparsh-X</h2>
-<p align="center">
-Carolina Higuera*, Akash Sharma*, Taosha Fan*, Chaithanya Krishna Bodduluri, Byron Boots, Michael Kaess, Mike Lambeta, Tingfan Wu, Zixi Liu, Francois Robert Hogan+, Mustafa Mukadam+ </p>
-<p align='center'><small> CoRL 2025 (Oral) </small></p>
-<p align="center">
-  <a href="https://arxiv.org/abs/2506.14754"><img src="https://img.shields.io/badge/arXiv-2410.24090-b31b1b.svg"></img></a>
-  <a href="https://akashsharma02.github.io/sparsh-x-ssl/"><img src="http://img.shields.io/badge/Project-Page-blue.svg"></img></a>
-  <a href="https://youtu.be/lJ4JGNmo-do"><img src="http://img.shields.io/badge/Video-Link-green.svg"></img></a>
-  <a href="https://huggingface.co/collections/carohiguera/sparsh-x-68a02683b28a46ccae83cf77"><img src="https://img.shields.io/badge/Models%20and%20datasets-Link-yellow?logo=huggingface"></img></a>
-  <a href="#-citing-sparsh-x-and-sparsh-skin"><img src="http://img.shields.io/badge/Cite-Us-orange.svg"></img></a>
+The model combines:
 
-</p>
+* RGB visual observations
+* Geometric tactile readings
+* Robot proprioceptive state
+* Action-command data
 
-<h2 align='center'>Sparsh-Skin</h2>
-<p align="center">
-Akash Sharma, Carolina Higuera, Chaithanya Krishna Bodduluri, Zixi Liu, Taosha Fan, Tess Hellebrekers, Mike Lambeta, Byron Boots, Michael Kaess, Tingfan Wu, Francois Robert Hogan, Mustafa Mukadam </p>
-<p align='center'><small>CoRL 2025</small></p>
-<p align="center">
-  <a href="https://arxiv.org/abs/2505.11420"><img src="https://img.shields.io/badge/arXiv-2410.24090-b31b1b.svg"></img></a>
-  <a href="https://akashsharma02.github.io/sparsh-skin-ssl/"><img src="http://img.shields.io/badge/Project-Page-blue.svg"></img></a>
-  <a href="https://youtu.be/T_ha7fH7qKM?si=Nks2St5Scz5IJriA"><img src="http://img.shields.io/badge/Video-Link-green.svg"></img></a>
-  <a href=""><img src="https://img.shields.io/badge/Models%20and%20datasets-Link-yellow?logo=huggingface"></img></a>
-  <a href="#-citing-sparsh-x-and-sparsh-skin"><img src="http://img.shields.io/badge/Cite-Us-orange.svg"></img></a>
+These inputs are temporally aligned, embedded into a shared latent space, fused into a multimodal token sequence, and passed through a Transformer encoder to predict the next 7-DoF robot TCP pose.
 
-</p>
+## Core Pipeline
 
+The main pipeline is:
 
-
-
-
-
-## 🛠️Installation and setup
-
-Clone this repository:
-```bash
-git clone https://github.com/facebookresearch/sparsh-multisensory-touch.git
-cd tactile-ssl
-```
-Then,  create the `tactile_ssl` python environment. We recommend creating a new environment using `mamba` or `conda`. Our code needs `python >= 3.9`.
-```bash
-bash local_env.sh 
+```text
+RH20T dataset
+    ↓
+RH20main.py
+    ↓
+vision frames + tactile data + proprioception + action commands
+    ↓
+Cosmos image tokenizer + custom tactile encoder
+    ↓
+fusion_layer.py
+    ↓
+[Batch, 1027, 256] multimodal sequence
+    ↓
+world_transformer.py
+    ↓
+predicted next 7-DoF robot pose
 ```
 
-Finally you can install the `tactile-ssl` package as
+The final fused sequence contains:
 
-```bash
-pip install -e .
+```text
+1024 vision tokens
++ 1 tactile token
++ 1 proprioception token
++ 1 action-command token
+= 1027 multimodal tokens
 ```
 
-## Getting started
+## Main Project Files
 
-### 🚀 Pretrained Model Weights
+### `train.py`
 
-We provide various pretrained model weights for different sensor configurations and model sizes. Click the links below to download from Hugging Face:
+Main training entry point for the visuo-tactile world model.
 
-<!-- <table style="margin: auto">
-  <thead>
-  <tr>
-    <th>Backbone</th>
-    <th>Model size tiny</th>
-    <th>Model size base</th>
-  </tr>
-  </thead>
-  <tbody>
-  <tr>
-    <td>Sparsh-X (Digit 360) img-mic-imu-pressure</td>
-    <td><a href="https://drive.google.com/file/d/1zhi3WGjK6zXywaMvsqA_x2cFHIjnm-Oz/view?usp=drive_link">ckpt</a></td>
-    <td><a href="https://drive.google.com/file/d/1KesjZbvoq3P1hIhv5lIV3KIwJ4347h82/view?usp=drive_link">ckpt</a></td>
-  </tr>
-  <tr>
-    <td>Sparsh-X (Digit 360) img</td>
-    <td>:x:</td>
-    <td><a href="https://drive.google.com/file/d/1F4ZpISGeBNwcLOFnSNOJtmGP22XSWa3m/view?usp=drive_link">ckpt</a></td>
-  </tr>
-  <tr>
-    <td>Sparsh-Skin (Xela)</td>
-    <td><a href="https://drive.google.com/file/d/1OfvFdNEU1brxelcCRrspOv58wLCpYBcX/view?usp=drive_link">ckpt</a></td>
-    <td>:x:</td>
-  </tr>
-  </tbody>
-</table> -->
+It:
 
-<table style="margin: auto">
-  <thead>
-  <tr>
-    <th>Backbone</th>
-    <th>Weights (hf &#x1F917)</th>
-  </tr>
-  </thead>
-  <tbody>
-  <tr>
-    <td>Sparsh-X (Digit 360) img-mic-imu-pressure</td>
-    <td><a href="https://huggingface.co/facebook/sparsh-x-all">ckpt</a></td>
-  </tr>
-  <tr>
-    <td>Sparsh-X (Digit 360) img</td>
-    <td><a href="https://huggingface.co/facebook/sparsh-x-img">ckpt</a></td>
-  </tr>
-  <tr>
-    <td>Sparsh-Skin (Xela)</td>
-    <td><a href="https://huggingface.co/facebook/sparsh-skin">ckpt</a></td>
-  </tr>
-  </tbody>
-</table>
+* Loads RH20T task folders from `data/RH20T_cfg7/`
+* Creates a combined dataset across available task folders
+* Loads the NVIDIA Cosmos image tokenizer
+* Initialises the custom tactile encoder
+* Initialises the multimodal fusion layer
+* Initialises the Transformer-based predictive world model
+* Trains the model using MSE loss against the next robot TCP pose
+* Saves checkpoints after each epoch
 
-
-### 📝 Task and Training Configuration
-
-We use [Hydra](https://hydra.cc/) for configuration management. All config files can be found in `config/experiment/d360` folder for Sparsh-X and `config/experiment/xela` for Sparsh-Skin.
-
-The config folder is organized as follows:
+Run with:
 
 ```bash
-├── config
-│   ├── data # contains dataset configs
-│   ├── experiment # contains full config for experiments per sensor 
-|   |   ├── d360
-|   |   |   ├── dino.yaml # SSL training config for a self-distillation approach
-|   |   |   ├── downstream_task # contains configs for downstream evaluation of the Sparsh-X  encoder
-|   |   |   |   ├── force # (e.g. normal force regression)
-|   |   |   |   |   ├── dino.yaml # config for normal force regression task using pretrained Sparsh-X encoder
-|   |   |   |   |   ├── e2e.yaml # config for normal force regression task in an end-to-end approach.
-|   |   ├── xela
-|   |   |   ├── dinov2.yaml # SSL training config for a self-distillation approach
-|   |   |   ├── task # contains configs for downstream evaluation of the Sparsh-skin encoder
-|   |   |   |   ├── ...
-│   ├── algorithm # contains configs for each ssl algorithm
-│   ├── paths # add your config here with paths to datasets / checkpoint / outputs / etc.
-│   ├── task # contains downstream_task configs
-│   ├── wandb # add your wandb config here for experiment tracking
-│   ├── default.yaml # The SSL training default config is overridden by the SSL experiment to launch (e.g experiment/d360/dino.yaml)
+python train.py
 ```
 
+### `RH20main.py`
 
-### ⏩ Forward pass with pretrained Sparsh model
+Dataset-loading and temporal synchronisation logic for RH20T.
 
-You can run the following script to test the pretrained Sparsh-X model on a dummy input.
+It loads:
 
-1. For the Sparsh-X model you can do the following:
-```python
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from tactile_ssl.build_encoder import build_encoder
+* RGB video frames from `color.mp4`
+* Video timestamps from `timestamps.npy`
+* Tactile data from `transformed/tactile.npy`
+* High-frequency robot state data from `transformed/high_freq_data.npy`
+* Action-command data from `robot_command/tcpcommand_timestamp.npy`
 
-config = "config/encoder/digit360_sparshx.yaml"
-ckpt_path = "checkpoints/d360_sparshx_img_mic_imu_pressure_base.pth" # change to your checkpoints path
+It performs nearest-neighbour timestamp alignment between the different sensor streams and returns PyTorch tensors for:
 
-sparsh_encoder = build_encoder(config, ckpt_path=ckpt_path, device="cuda", mode="eval")
-
-with torch.inference_mode():
-  # Dummy input
-  tactile_img = torch.randn(1, 6, 224, 224)
-  tactile_audio = torch.randn(1, 224, 256)
-  tactile_imu = torch.randn(1, 224, 3)
-  tactile_pressure = torch.randn(1, 224, 1)
-  # -----------
-
-  input_dict = {
-    "img": tactile_img.to("cuda"),
-    "mic": tactile_audio.to("cuda"),
-    "imu": tactile_imu.to("cuda"),
-    "pressure": tactile_pressure.to("cuda"),
-  }
-  # Forward pass
-  tactile_rep = sparsh_encoder(input_dict)
-
-  # organize output
-  tactile_embeddings = []
-  for k, v in tactile_rep.items():
-    print(f"{k}: {v.shape}")
-    rep = F.layer_norm(v, (v.shape[-1], ))
-    tactile_embeddings.append(rep)
-  tactile_embeddings = torch.cat(tactile_embeddings, dim=1)
-```
-2. Similarly, for the Sparsh-Skin model you can do the following:
-```python
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
-from tactile_ssl.build_encoder import build_encoder
-config = "config/encoder/xela_sparshskin.yaml"
-ckpt_path = "checkpoints/xela_sparshskin_tiny.pth"
-
-sparsh_encoder = build_encoder(config, ckpt_path=ckpt_path, device="cuda", mode="eval")
-
-with torch.inference_mode():
-  # Dummy input
-  input = torch.randn(1, 100, 368, 6).to("cuda")  # batch, sequence, num_sensors, channels (xyz + position)
-
-  # Forward pass
-  tactile_rep = sparsh_encoder.forward_features(input)
-
-  # organize output
-  tactile_embeddings = []
-  for k, v in tactile_rep.items():
-    print(f"{k}: {v.shape}")
-    rep = F.layer_norm(v, (v.shape[-1],))
-    tactile_embeddings.append(rep)
-  tactile_embeddings = torch.cat(tactile_embeddings, dim=1)
+```text
+vision
+tactile
+proprio
+action
+target
 ```
 
+The target is the next timestep robot TCP pose.
 
-## 🏋️‍♂️ Training tactile representations
+### `tactile_encoder.py`
 
-Add the corresponding `data/`, `algorithm/` and `experiment/` config files for your sensor and SSL pretraining dataset. For launching the training job, run:
+Custom tactile encoder.
+
+This file defines `SparshTactileEncoder`, a 3-layer MLP that converts raw geometric tactile data into the shared 256-dimensional embedding space.
+
+Expected input shape:
+
+```text
+[Batch, 2, 16, 3]
+```
+
+Output shape:
+
+```text
+[Batch, 256]
+```
+
+### `fusion_layer.py`
+
+Multimodal fusion layer.
+
+This file defines `MultimodalFusion`, which projects and combines:
+
+* Cosmos visual tokens
+* Tactile embeddings
+* Proprioceptive state
+* Action-command vectors
+
+The output is a fused sequence:
+
+```text
+[Batch, 1027, 256]
+```
+
+### `world_transformer.py`
+
+Transformer-based predictive world model.
+
+This file defines `PredictiveWorldModel`, a Transformer encoder with:
+
+* 256-dimensional embeddings
+* 8 attention heads
+* 4 Transformer encoder layers
+* GELU activations
+* A final linear prediction head
+
+The model predicts the next 7-DoF robot TCP pose.
+
+### `download_cosmos.py`
+
+Downloads the NVIDIA Cosmos image tokenizer weights:
+
+```text
+Cosmos-0.1-Tokenizer-CI8x8
+```
+
+The weights are downloaded into:
+
+```text
+pretrained_ckpts/Cosmos-0.1-Tokenizer-CI8x8/
+```
+
+Run with:
 
 ```bash
-python train.py +experiment=d360/dino.yaml paths=${YOUR PATH CONFIG} wandb=${YOUR WANDB CONFIG} use_img=true use_mic=true use_imu=true use_pressure=true model_size=base fusion_type=bottleneck
+python download_cosmos.py
 ```
 
-Note that this repository provides dataloaders for the Digit 360 (multisensory touch) and Xela sensor (magnetic skin). To use the same architecture and training methodology with a different touch sensor, you'll need to implement a custom dataloader compatible with your specific sensor's data format.
+### `download_cosmos_video.py`
 
-To do this:
-1. Create a new dataloader in the `tactile_ssl/data/` directory
-2. Update the configuration files to reference your new dataloader
-3. Ensure your data is preprocessed to match the expected input format
+Downloads the NVIDIA Cosmos video tokenizer weights:
 
+```text
+Cosmos-0.1-Tokenizer-CV8x8x8
+```
 
-### Training downstream tasks
+This was used for video-tokenisation experiments and ALOHA-related testing.
+
+Run with:
 
 ```bash
-python train_task.py +experiment=${YOUR EXP NAME} paths=${YOUR PATH CONFIG} wandb=${YOUR WANDB CONFIG} task.sensors=[img, mic, imu, pressure] +paths.encoder_checkpoint_root=${ROOT PATH TO CKPTS}
+python download_cosmos_video.py
 ```
-## 📥 Pretraining datasets
 
-### Sparsh-X
+## Experimental / Secondary Files
 
-<div style="display: flex; align-items: center;">
-<div style="flex: 2;">
-Our SSL training dataset consists of ∼1M samples generated from two primary sources: an Allegro hand with Digit 360 sensors on the fingertips that performs random motions with objects such as dipping into a tray filled with various items; and a manual picker with the same sensor adapted to the gripping mechanism, used to execute atomic manipulation actions such as picking up, sliding, tapping, placing, and dropping objects against diverse surfaces that vary in roughness, hardness, softness, friction, and texture properties.
-</div>
-<div style="flex: 1; text-align: right;">
-<img src="./assets/readme/readme_fig2.png" alt="drawing" width="250"/>
-</div>
-</div>
+### `aloha_main.py`
 
-We provide the sequences used for SSL training in `pickle` format. Each sequence has the following structure:
+Experimental ALOHA perception script for combining Cosmos video tokens and Sparsh-X tactile tokens from ALOHA-style HDF5 recordings.
+
+This is not the main RH20T training entry point, but it documents an extension path for ALOHA-based multimodal perception.
+
+### `aloha_test.py`
+
+Hardware-aware ALOHA test script using dummy video and tactile tensors to validate the Cosmos video tokenizer and Sparsh-X encoder pipeline.
+
+### `train_task.py`
+
+Inherited/support training script from the tactile representation learning codebase. This is mainly associated with the `tactile_ssl/` framework and is not the main visuo-tactile world model training entry point.
+
+### `inference.py`
+
+Example Sparsh-X inference script for testing tactile encoders on dummy inputs. This is useful for checking the inherited tactile encoder pipeline, but it is not the main evaluation script for the RH20T world model.
+
+## Sanity Test Scripts
+
+The repository includes several small test scripts used during development.
+
+```text
+test_vision.py
+test_video_sync.py
+test_tactile.py
+test_sync.py
+test_action.py
+test_joints.py
+test_cosmos.py
+test_cosmos_video.py
+test_sparsh.py
+```
+
+Recommended sanity-test order:
 
 ```bash
-├── data.pickle
-│   ├── d360_0
-│   |   ├── image_raw/compressed # list of msgs with tactile image @30Hz
-│   |   ├── imu_quat_topic  # list of msgs with IMU quaternion data @400Hz
-│   |   ├── imu_raw_topic # list of msgs with raw 3-axis accelerometer data @400Hz
-│   |   ├── mic_0 # list of time-series messages from contact microphone @48kHz
-│   |   ├── mic_1 # list of time-series messages from contact microphone @48kHz
-│   |   ├── pressure_topic # list of time-series messages from pressure @200Hz
+python test_vision.py
+python test_tactile.py
+python test_sync.py
+python test_video_sync.py
+python test_action.py
+python test_cosmos.py
 ```
 
-Use the script `scripts/d360/mcap2pickle.py` to convert an `.mcap` rosbag into the required `pickle` format.
-Use the script `tactile_ssl/data/d360_tactile.py` to format the inputs (dataset) for Sparsh-X.
+Some tests require local RH20T data or pretrained checkpoints.
 
-<div>
-🤗 Download our dataset from <a href="https://huggingface.co/datasets/facebook/sparsh-x-dataset">Hugging Face</a>!
-</div>
+## Support Folders
 
+### `tactile_ssl/`
 
-### Sparsh-skin 
-<div style="display: flex; align-items: center;">
-<div style="flex: 2;">
-For Sparsh-skin the dataset consists of ~4 hours of contact data with different types of household objects, collected via a VR teleoperation using the Meta Quest 3. There are 14 different objects in the dataset, each containing 10 sequences per object, which are each ~2 mins long. Every object has varied interaction with the object, including sliding, tapping, object reorientation in the hand, and the like.
-</div> 
-<div style="flex: 1; text-align: right;">
-<img src="./assets/readme/xela_dataset.png" alt="drawing" width='700'>
-</div>
-</div>
+Inherited/support code for tactile representation learning and Sparsh/Sparsh-X style encoders.
 
-We provide the sequences used for SSL training in an extracted `pickle` format. Each sequence in the dataset has the following structure: 
+This folder includes:
+
+* encoder-building utilities
+* tactile datasets
+* Transformer backbones
+* training utilities
+* downstream task components
+* loss functions
+* plotting and logging utilities
+
+This folder supports the tactile foundation model side of the project, but the core world-model contribution is mainly in:
+
+```text
+RH20main.py
+tactile_encoder.py
+fusion_layer.py
+world_transformer.py
+train.py
+```
+
+### `config/`
+
+Configuration files for tactile SSL models, encoders, datasets, tasks, W&B settings and experiment definitions.
+
+Important subfolders include:
+
+```text
+config/encoder/
+config/data/
+config/task/
+config/experiment/
+config/paths/
+```
+
+### `scripts/`
+
+Helper scripts inherited from the tactile representation learning codebase, including conversion, dataset and ROS-related utilities.
+
+### `assets/`
+
+Robot/tactile sensor assets, meshes, URDF files and README figures inherited from the tactile representation learning codebase.
+
+## Environment Setup
+
+The repository uses a Conda environment file:
+
+```text
+environment.yaml
+```
+
+Create the environment with:
 
 ```bash
-.
-├── ball
-│   ├── 0
-│   │   ├── allegro # contains data.pkl with allegro joint states information
-│   │   ├── left_camera # contains auxiliary left camera view for inspection
-│   │   ├── top_camera # contains auxiliary top camera view for inspection
-│   │   └── xela # contains `data.pkl` and `forces.pkl`; `data.pkl` contains raw data used for training, and `forces.pkl` contains 
-│   ├── 1
-|   |....
-| 
-|-- baseline
-│   ├── allegro
-│   ├── realsense
-│   │   └── color
-│   └── xela
-|-- urdf
+conda env create -f environment.yaml
 ```
 
-<div>
-Download our dataset from <a href="https://huggingface.co/datasets/facebook/sparsh-skin-dataset">Hugging Face</a>!
-</div>
+Activate the environment:
 
-
-## License
-This project is licensed under [LICENSE](LICENSE).
-
-## 📚 Citing the Sparsh family of tactile representations
-
-If you find this repository useful, please consider giving a star :star: and citation:
-
-```bibtex
-@inproceedings{
-sharma2025selfsupervised,
-title={Self-supervised perception for tactile skin covered dexterous hands},
-author={Akash Sharma and Carolina Higuera and Chaithanya Krishna Bodduluri and Zixi Liu and Taosha Fan and Tess Hellebrekers and Mike Lambeta and Byron Boots and Michael Kaess and Tingfan Wu and Francois Robert Hogan and Mustafa Mukadam},
-booktitle={9th Annual Conference on Robot Learning},
-year={2025},
-url={https://openreview.net/forum?id=eLeCrM5PEO}
-}
+```bash
+conda activate worldmodel
 ```
 
-```bibtex
-@inproceedings{
-higuera2025tactile,
-title={Tactile Beyond Pixels: Multisensory Touch Representations for Robot Manipulation},
-author={Carolina Higuera and Akash Sharma and Taosha Fan and Chaithanya Krishna Bodduluri and Byron Boots and Michael Kaess and Mike Lambeta and Tingfan Wu and Zixi Liu and Francois Robert Hogan and Mustafa Mukadam},
-booktitle={9th Annual Conference on Robot Learning},
-year={2025},
-url={https://openreview.net/forum?id=sMs4pJYhWi}
-}
+If the environment file is edited or renamed, check the `name:` field inside `environment.yaml` and activate that environment name.
+
+## Important Encoding Note
+
+If `environment.yaml` was edited on Windows, ensure it is saved as UTF-8.
+
+In VS Code:
+
+1. Open `environment.yaml`
+2. Click the encoding label in the bottom-right
+3. Select `Save with Encoding`
+4. Choose `UTF-8`
+
+This prevents Conda and GitHub from misreading the file.
+
+## Required External Files
+
+Large datasets and model checkpoints are intentionally not included in this repository.
+
+You must manually provide:
+
+### RH20T dataset
+
+Expected local structure:
+
+```text
+data/
+└── RH20T_cfg7/
+    ├── task_0001_user_0014_scene_0001_cfg_0007/
+    │   ├── cam_037522061512/
+    │   │   ├── color.mp4
+    │   │   └── timestamps.npy
+    │   ├── transformed/
+    │   │   ├── tactile.npy
+    │   │   └── high_freq_data.npy
+    │   └── robot_command/
+    │       └── tcpcommand_timestamp.npy
+    └── task_...
 ```
 
-```bibtex
-@inproceedings{
-  higuera2024sparsh,
-  title={Sparsh: Self-supervised touch representations for vision-based tactile sensing},
-  author={Carolina Higuera and Akash Sharma and Chaithanya Krishna Bodduluri and Taosha Fan and Patrick Lancaster and Mrinal Kalakrishnan and Michael Kaess and Byron Boots and Mike  Lambeta and Tingfan Wu and Mustafa Mukadam},
-  booktitle={8th Annual Conference on Robot Learning},
-  year={2024},
-  url={https://openreview.net/forum?id=xYJn2e1uu8}
-}
+The training script scans:
+
+```text
+data/RH20T_cfg7/
 ```
 
-## 🤝 Acknowledgements
+for folders beginning with:
 
+```text
+task_
+```
 
-The authors thank Unnat Jain, Hung-Jui Huang, Youngsun Wi, Changhao Wang, Haozhi Qi, Luis Pineda, Jessica Yin, Tarasha Khurana, Mrinal Kalakrishnan and Jitendra Malik for helpful discussions on the research and reviews of the papers. This work is supported by Meta FAIR labs.
+### Cosmos image tokenizer
+
+Download with:
+
+```bash
+python download_cosmos.py
+```
+
+Expected location:
+
+```text
+pretrained_ckpts/
+└── Cosmos-0.1-Tokenizer-CI8x8/
+    └── encoder.jit
+```
+
+### Cosmos video tokenizer
+
+Only needed for video-tokeniser or ALOHA experiments.
+
+Download with:
+
+```bash
+python download_cosmos_video.py
+```
+
+Expected location:
+
+```text
+pretrained_ckpts/
+└── Cosmos-0.1-Tokenizer-CV8x8x8/
+    └── encoder.jit
+```
+
+### Sparsh-X / tactile SSL checkpoints
+
+If using the inherited tactile SSL pipeline, place checkpoints in:
+
+```text
+checkpoints/
+```
+
+or:
+
+```text
+pretrained_ckpts/
+```
+
+depending on the script being used.
+
+Example paths referenced by the scripts include:
+
+```text
+checkpoints/d360_sparshx_img_mic_imu_pressure_tiny.pth
+checkpoints/xela_sparshskin_tiny.pth
+pretrained_ckpts/sparsh_base.pth
+```
+
+These files are not uploaded to GitHub because they are large model weights.
+
+## Files Excluded from GitHub
+
+The following are excluded through `.gitignore`:
+
+```text
+data/
+datasets/
+RH20T/
+pretrained_ckpts/
+checkpoints/
+models/
+wandb/
+runs/
+outputs/
+logs/
+*.pth
+*.pt
+*.ckpt
+*.safetensors
+*.onnx
+*.npy
+*.npz
+*.mp4
+*.avi
+*.mov
+```
+
+This prevents large datasets, checkpoints, videos and experiment logs from being accidentally committed.
+
+## Reproducing the Main RH20T Experiment
+
+### 1. Clone the repository
+
+```bash
+git clone https://github.com/YOUR-USERNAME/visuo-tactile-world-models.git
+cd visuo-tactile-world-models
+```
+
+Replace `YOUR-USERNAME` with the correct GitHub username after publishing the repository.
+
+### 2. Create the environment
+
+```bash
+conda env create -f environment.yaml
+conda activate worldmodel
+```
+
+### 3. Download the Cosmos image tokenizer
+
+```bash
+python download_cosmos.py
+```
+
+Confirm that this file exists:
+
+```text
+pretrained_ckpts/Cosmos-0.1-Tokenizer-CI8x8/encoder.jit
+```
+
+### 4. Add the RH20T dataset
+
+Place the dataset under:
+
+```text
+data/RH20T_cfg7/
+```
+
+The folder should contain one or more task folders beginning with `task_`.
+
+### 5. Run sanity checks
+
+Check the RH20T video stream:
+
+```bash
+python test_vision.py
+```
+
+Check tactile formatting:
+
+```bash
+python test_tactile.py
+```
+
+Check timestamp synchronisation:
+
+```bash
+python test_sync.py
+python test_video_sync.py
+```
+
+Check action-command loading:
+
+```bash
+python test_action.py
+```
+
+Check Cosmos image tokenisation:
+
+```bash
+python test_cosmos.py
+```
+
+### 6. Train the world model
+
+```bash
+python train.py
+```
+
+On a cluster or SLURM-based system, use:
+
+```bash
+bash run_training.sh
+```
+
+`run_training.sh` is configured for a GPU job and activates the `worldmodel` environment before running:
+
+```bash
+python train.py
+```
+
+## Expected Training Outputs
+
+Training saves model checkpoints after each epoch as:
+
+```text
+world_model_epoch_1.pth
+world_model_epoch_2.pth
+...
+```
+
+These checkpoint files are ignored by Git because they can become large.
+
+Each checkpoint contains:
+
+```text
+epoch
+tactile_state
+fusion_state
+world_state
+optimizer
+loss
+```
+
+## Hardware Notes
+
+The full experiment is computationally heavy.
+
+Recommended hardware:
+
+* CUDA-compatible NVIDIA GPU
+* Large VRAM GPU preferred
+* Sufficient CPU RAM for video frame loading
+* Large local storage for RH20T data and checkpoints
+
+The original training pipeline was designed for workstation/cluster-style hardware rather than standard laptop execution.
+
+## Precision and Stability Notes
+
+The main training script uses Cosmos image tokens, then converts the token output back to `float32` before fusion and prediction.
+
+The fused sequence is long:
+
+```text
+[Batch, 1027, 256]
+```
+
+Long sequence lengths can make Transformer training memory-intensive. Avoid changing precision or attention settings unless you have tested stability carefully.
+
+## Known Limitations
+
+This repository is a research prototype rather than a polished software package.
+
+Current limitations:
+
+* Dataset files are not included.
+* Pretrained model weights are not included.
+* Some scripts contain local assumptions and may need path edits.
+* `inference.py` is currently a tactile encoder demonstration rather than a full RH20T evaluation pipeline.
+* `aloha_main.py` and `aloha_test.py` are experimental ALOHA extensions, not the main RH20T training route.
+* Some inherited folders come from the tactile SSL/Sparsh support codebase.
+* Full training is GPU-heavy.
+* More systematic downstream evaluation is future work.
+
+## Recommended Final Repository Structure
+
+```text
+visuo-tactile-world-models/
+│
+├── README.md
+├── environment.yaml
+├── .gitignore
+├── run_training.sh
+│
+├── train.py
+├── RH20main.py
+├── tactile_encoder.py
+├── fusion_layer.py
+├── world_transformer.py
+│
+├── inference.py
+├── aloha_main.py
+├── aloha_test.py
+│
+├── download_cosmos.py
+├── download_cosmos_video.py
+│
+├── test_vision.py
+├── test_tactile.py
+├── test_sync.py
+├── test_video_sync.py
+├── test_action.py
+├── test_joints.py
+├── test_cosmos.py
+├── test_cosmos_video.py
+├── test_sparsh.py
+│
+├── config/
+├── scripts/
+├── tactile_ssl/
+├── assets/
+│
+├── data/                  # ignored, user provides locally
+├── pretrained_ckpts/      # ignored, user provides locally
+├── checkpoints/           # ignored, user provides locally
+└── outputs/               # ignored, generated locally
+```
+
+## Acknowledgements
+
+This project uses and adapts support code from the Sparsh/Sparsh-X tactile representation learning codebase for tactile encoder experimentation. The main project contribution is the RH20T-based visuo-tactile world model pipeline implemented through:
+
+```text
+RH20main.py
+tactile_encoder.py
+fusion_layer.py
+world_transformer.py
+train.py
+```
+
+## Author
+
+Muhammad Danyal Sultan
+University of Sheffield
+General Engineering
+Final Year Project: Multimodal Predictive World Models for Robotic Manipulation

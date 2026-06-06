@@ -637,9 +637,19 @@ visuo-tactile-world-models/
 └── outputs/               # ignored, generated locally
 ```
 
+## Project Background
+
+This repository accompanies my BEng General Engineering (Software) dissertation at the University of Sheffield:
+
+**Visuo-Tactile World Models: Multimodal Tokenisation and Predictive Representation for Robotic Manipulation**
+
+The project was supervised by **Dr Amir Ghalamzan** and investigates multimodal predictive representation learning for robotic manipulation using visual, tactile, proprioceptive and action-command data.
+
 ## Acknowledgements
 
-This project uses and adapts support code from the Sparsh/Sparsh-X tactile representation learning codebase for tactile encoder experimentation. The main project contribution is the RH20T-based visuo-tactile world model pipeline implemented through:
+I would like to thank **Dr Amir Ghalamzan** for his guidance and supervision throughout this project. I also acknowledge the support of the **Intelligent Manipulation Laboratory (IML)** and thank **Emma Harrison** for her insights into world models, which helped shape the direction of this research.
+
+This project uses and adapts support code from the **Sparsh/Sparsh-X tactile representation learning codebase** for tactile encoder experimentation. The main project contribution is the RH20T-based visuo-tactile world model pipeline implemented through:
 
 ```text
 RH20main.py
@@ -647,7 +657,6 @@ tactile_encoder.py
 fusion_layer.py
 world_transformer.py
 train.py
-```
 
 ## Author
 
